@@ -66,7 +66,7 @@ public class RabbitMQConfig {
     public Binding bindingOrderDeliveryEvents(Queue deliveryProcessedQueue, TopicExchange exchange) {
         return BindingBuilder
                 .bind(deliveryProcessedQueue)
-                .to(exchange())
+                .to(exchange)
                 .with(DELIVERY_EVENTS_ROUTING_KEY);
     }
 

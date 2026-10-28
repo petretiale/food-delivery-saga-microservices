@@ -1,6 +1,7 @@
 package orderservice.controller;
 
 import orderservice.config.RabbitMQConfig;
+import orderservice.dto.OrderRequest;
 import orderservice.event.OrderCreatedEvent;
 import orderservice.model.Order;
 import orderservice.model.OrderStatus;
@@ -24,28 +25,29 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<Order> createOrders(@RequestBody Order request) {
+    public ResponseEntity<Order> createOrders(@RequestBody OrderRequest request) {
         String orderID = UUID.randomUUID().toString();
 
         Order order = new Order(
                 orderID,
-                request.getCustomerName(),
-                request.getItem(),
-                request.getAmount(),
+                request.customerName(),
+                request.item(),
+                request.amount(),
                 OrderStatus.PENDING
         );
 
         Order savedOrder = orderRepository.save(order);
 
         OrderCreatedEvent orderCreatedEvent = new OrderCreatedEvent(
-                order.getOrderID(),
-                order.getCustomerName(),
-                order.getAmount());
+                savedOrder.getOrderID(),
+                savedOrder.getCustomerName(),
+                savedOrder.getAmount());
 
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.ORDER_EXCHANGE,
                 RabbitMQConfig.ORDER_CREATED_ROUTING_KEY,
-                orderCreatedEvent);
+                orderCreatedEvent
+        );
 
         return ResponseEntity.ok(savedOrder);
     }
