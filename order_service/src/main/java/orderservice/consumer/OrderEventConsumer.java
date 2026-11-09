@@ -6,11 +6,15 @@ import orderservice.event.DeliveryProcessedEvent;
 import orderservice.event.PaymentProcessedEvent;
 import orderservice.model.OrderStatus;
 import orderservice.repository.OrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 @Component
 public class OrderEventConsumer {
+
+    private final static Logger log = LoggerFactory.getLogger(OrderEventConsumer.class);
 
     private final OrderRepository orderRepository;
 
@@ -20,42 +24,32 @@ public class OrderEventConsumer {
 
     @RabbitListener(queues = RabbitMQConfig.ORDER_PAYMENT_EVENTS_QUEUE)
     @Transactional
-    public void paymentFailure (PaymentProcessedEvent event) {
-        System.out.println("==================================================");
-        System.out.println("💳 [ORDER SERVICE] Ricevuto evento di pagamento:");
-        System.out.println(" - ID Ordine: " + event.orderID());
-        System.out.println(" - Esito:     " + (event.success() ? "SUCCESSO" : "FALLITO"));
-        System.out.println(" - Motivo:    " + event.reason());
-        System.out.println("==================================================");
+    public void handlePaymentEvent(PaymentProcessedEvent event) {
+        log.info("[ORDER SERVICE] Ricevuto evento pagamento - Ordine: {}, Esito: {}, Motivo: {}",
+                event.orderID(),
+                event.success() ? "SUCCESSO" : "FALLITO",
+                event.reason());
 
-        if (!event.success()) {
-            // Se il motivo è il fallimento del pagamento iniziale, annulla l'ordine
-            // (se fosse PAYMENT_REFUNDED, l'ordine viene già gestito/annullato dalla compensazione di delivery)
-            if ("INSUFFICIENT_FUNDS".equals(event.reason())) {
-                orderRepository.findById(event.orderID()).ifPresent(order -> {
-                    order.setOrderStatus(OrderStatus.CANCELLED);
-                    orderRepository.save(order);
-                    System.out.println("❌ [ORDER SERVICE] Ordine " + event.orderID() + " impostato a CANCELLED per fondi insufficienti.");
-                });
-            }
-        } else {
-            // Pagamento autorizzato con successo: l'ordine resta in PENDING in attesa dell'esito delivery
-            System.out.println("ℹ️ [ORDER SERVICE] Pagamento confermato per ordine " + event.orderID() + ". In attesa di assegnazione rider.");
+        if (!event.success() && "INSUFFICIENT_FUNDS".equals(event.reason())) {
+            updateStatus(event.orderID(), OrderStatus.CANCELLED, "Fondi insufficienti");
         }
     }
 
     @RabbitListener(queues = RabbitMQConfig.ORDER_DELIVERY_EVENTS_QUEUE)
     @Transactional
-    public void deliveryResult(DeliveryProcessedEvent deliveryEvent) {
-        orderRepository.findById(deliveryEvent.orderID()).ifPresent(order -> {
-            if (deliveryEvent.riderAssigned()) {
-                System.out.println("[ORDER SERVICE] Consegna confermata per ordine: " + deliveryEvent.orderID());
-                order.setOrderStatus(OrderStatus.CONFIRMED);
-            } else {
-                System.out.println("[ORDER SERVICE] Mancata consegna per ordine: " + deliveryEvent.orderID());
-                order.setOrderStatus(OrderStatus.CANCELLED);
-            }
+    public void handleDeliveryResult(DeliveryProcessedEvent deliveryEvent) {
+        if (deliveryEvent.riderAssigned()) {
+            updateStatus(deliveryEvent.orderID(), OrderStatus.CONFIRMED, "Rider assegnato");
+        } else {
+            updateStatus(deliveryEvent.orderID(), OrderStatus.CANCELLED, "Consegna fallita: " + deliveryEvent.reason());
+        }
+    }
+
+    private void updateStatus(String orderId, OrderStatus status, String note) {
+        orderRepository.findById(orderId).ifPresent(order -> {
+            order.setOrderStatus(status);
             orderRepository.save(order);
+            log.info("[ORDER SERVICE] Ordine {} aggiornato a {} ({})", orderId, status, note);
         });
     }
 }

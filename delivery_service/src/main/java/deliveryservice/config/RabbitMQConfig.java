@@ -35,10 +35,10 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Binding binding(Queue deliveryOrderQueue) {
+    public Binding binding(Queue deliveryOrderQueue, TopicExchange exchange) {
         return BindingBuilder
                 .bind(deliveryOrderQueue)
-                .to(exchange())
+                .to(exchange)
                 .with(PAYMENT_SUCCESS_ROUTING_KEY);
     }
 
