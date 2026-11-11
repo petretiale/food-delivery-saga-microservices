@@ -1,0 +1,168 @@
+{
+  "info": {
+    "name": "Food Delivery Saga Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Happy Path - Create Order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "pm.environment.set(\"orderID\", jsonData.orderID);",
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Initial state is PENDING\", function () { pm.expect(jsonData.status).to.eql(\"PENDING\"); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerName\": \"Alessandro\",\n  \"item\": \"Pizza Margherita\",\n  \"amount\": 12.00\n}"
+        },
+        "url": "http://localhost:8081/orders"
+      }
+    },
+    {
+      "name": "1b. Happy Path - Verify CONFIRMED",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "setTimeout(function(){}, 2000);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Final state is CONFIRMED\", function () { pm.expect(jsonData.status).to.eql(\"CONFIRMED\"); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/orders/{{orderID}}"
+      }
+    },
+    {
+      "name": "2. Abort Funds - Create Order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "pm.environment.set(\"orderID\", jsonData.orderID);",
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerName\": \"Alessandro\",\n  \"item\": \"Maxi Fornitura\",\n  \"amount\": 80.00\n}"
+        },
+        "url": "http://localhost:8081/orders"
+      }
+    },
+    {
+      "name": "2b. Abort Funds - Verify CANCELLED",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "setTimeout(function(){}, 2000);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Final state is CANCELLED (Abort)\", function () { pm.expect(jsonData.status).to.eql(\"CANCELLED\"); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/orders/{{orderID}}"
+      }
+    },
+    {
+      "name": "3. Rollback No Rider - Create Order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "pm.environment.set(\"orderID\", jsonData.orderID);",
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerName\": \"NoRider\",\n  \"item\": \"Pizza Diavola\",\n  \"amount\": 14.00\n}"
+        },
+        "url": "http://localhost:8081/orders"
+      }
+    },
+    {
+      "name": "3b. Rollback No Rider - Verify CANCELLED",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "setTimeout(function(){}, 2000);"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Final state is CANCELLED (Compensated)\", function () { pm.expect(jsonData.status).to.eql(\"CANCELLED\"); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/orders/{{orderID}}"
+      }
+    }
+  ]
+}

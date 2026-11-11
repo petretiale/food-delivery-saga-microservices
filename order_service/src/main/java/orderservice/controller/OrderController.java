@@ -30,7 +30,7 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<OrderResponse> createOrders(@RequestBody OrderRequest request) {
+    public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest request) {
         String orderID = UUID.randomUUID().toString();
 
         Order order = new Order(
